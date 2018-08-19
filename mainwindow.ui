@@ -16,9 +16,9 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="1">
-     <widget class="QPushButton" name="listener_button">
+     <widget class="QPushButton" name="client_button">
       <property name="text">
-       <string>Listener</string>
+       <string>Client</string>
       </property>
      </widget>
     </item>

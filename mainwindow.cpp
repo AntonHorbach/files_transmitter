@@ -15,14 +15,41 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_transfer_button_clicked()
 {
-    file_data.clear();
     QFile file(QFileDialog::getOpenFileName(this, "Choose file", "."));
     file_name=file.fileName().toLocal8Bit();
+    socket->write(file_name);
+
+    QString file_size;
+    file_size.number(QFileInfo(file).size());
+    socket->write(file_size.toLocal8Bit());
+
+    {
+        std::string text="Send the "+file_name.toStdString()+"(size "+file_size.toStdString()+")";
+        ui->label->setText(QString(text.c_str()));
+        qDebug()<<file.size();
+        qDebug()<<file.fileName();
+    }
 
     if(!file.open(QFile::ReadOnly)) return;
+    QDataStream read(&file);
+    char buff[64]{};
+    long int bytes=0;
 
-    file_data=file.readAll();
-    socket->write(file_data);
+    while(!read.atEnd()){
+      int num = read.readRawData(buff, sizeof(char)*64);
+      QByteArray data(buff, sizeof(char)*num);
+
+      bytes += socket->write(data, sizeof(char)*num);
+      socket->flush();
+
+      if (bytes==-1){
+        qDebug() << "Error";
+        socket->close();
+        return;
+      }
+      float precents=(static_cast<float>(bytes) / file_size.toInt()) * 100;
+      ui->label->setText(QString::number(precents));
+    }
 }
 
 void MainWindow::my_slot(){
@@ -34,15 +61,42 @@ void MainWindow::my_slot(){
 void MainWindow::slot_reader()
 {
     socket=dynamic_cast<QTcpSocket*>(sender());
-    file_name=socket->readAll();
-    file_data=socket->readAll();
+    file_name=socket->read(64);
+    long int file_size=socket->read(64).toInt();
+    long int bytes_done = 0;
+    long int bytes=0;
+
+    {
+        std::string text="Get the "+file_name.toStdString();
+        ui->label->setText(QString(text.c_str()));
+        qDebug()<<file_size;
+    }
 
     QFile file;
     file.setFileName(file_name);
-    if (file.open(QIODevice::WriteOnly | QIODevice::Append)) {
-        file.write(file_data);
-        file.close();
+    file.open(QIODevice::WriteOnly);
+
+    QDataStream write(&file);
+
+    while (bytes_done < file_size){
+        bytes=0;
+        while (bytes==0)
+            bytes=socket->waitForReadyRead(-1);
+
+        if (bytes=-1){
+            qDebug()<<"Download error";
+            socket->close();
+            return;
+        }
+
+        QByteArray tmp = socket->readAll();
+        bytes += write.writeRawData(tmp.data(), tmp.size());
+        bytes_done += tmp.size();
+
+        float precents=(static_cast<float>(bytes) / file_size) * 100;
+        ui->label->setText(QString::number(precents));
     }
+    file.close();
 }
 
 void MainWindow::on_server_button_clicked()
@@ -53,7 +107,10 @@ void MainWindow::on_server_button_clicked()
     connect(server, SIGNAL(newConnection()), SLOT(my_slot()));
 }
 
-void MainWindow::on_listener_button_clicked()
+void MainWindow::on_client_button_clicked()
 {
-
+    socket=new QTcpSocket(this);
+    socket->connectToHost("localhost", 2121);
+    ui->label->setText("U r the client");
+    connect(socket, SIGNAL(readyRead()), SLOT(slot_reader()));
 }

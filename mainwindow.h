@@ -6,6 +6,7 @@
 #include <QTcpSocket>
 #include <QFile>
 #include <QFileDialog>
+#include <QDebug>
 
 namespace Ui {
 class MainWindow;
@@ -17,7 +18,6 @@ class MainWindow : public QMainWindow
     QTcpServer* server;
     QTcpSocket* socket;
     QByteArray file_name;
-    QByteArray file_data;
 
 public:
     explicit MainWindow(QWidget *parent = 0);
@@ -31,7 +31,7 @@ private slots:
     void slot_reader();
     void on_transfer_button_clicked();
     void on_server_button_clicked();
-    void on_listener_button_clicked();
+    void on_client_button_clicked();
 };
 
 #endif // MAINWINDOW_H
