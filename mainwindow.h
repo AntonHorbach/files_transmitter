@@ -17,7 +17,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
     QTcpServer* server;
     QTcpSocket* socket;
-    QByteArray file_name;
+    QString file_name;
 
 public:
     explicit MainWindow(QWidget *parent = 0);

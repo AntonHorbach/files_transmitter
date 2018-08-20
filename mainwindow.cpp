@@ -16,18 +16,21 @@ MainWindow::~MainWindow()
 void MainWindow::on_transfer_button_clicked()
 {
     QFile file(QFileDialog::getOpenFileName(this, "Choose file", "."));
-    file_name=file.fileName().toLocal8Bit();
-    socket->write(file_name);
-
-    QString file_size;
-    file_size.number(QFileInfo(file).size());
-    socket->write(file_size.toLocal8Bit());
 
     {
-        std::string text="Send the "+file_name.toStdString()+"(size "+file_size.toStdString()+")";
+        QFileInfo file_info(file);
+        file_name=file_info.fileName();
+
+        std::string text="Send the "+file_name.toStdString();
         ui->label->setText(QString(text.c_str()));
-        qDebug()<<file.size();
-        qDebug()<<file.fileName();
+
+        QByteArray f_info;
+        QDataStream finfo(&f_info, QIODevice::WriteOnly);
+        finfo<<file.size();
+        finfo<<file_name;
+
+        socket->write(f_info);
+        socket->waitForBytesWritten();
     }
 
     if(!file.open(QFile::ReadOnly)) return;
@@ -36,7 +39,7 @@ void MainWindow::on_transfer_button_clicked()
     long int bytes=0;
 
     while(!read.atEnd()){
-      int num = read.readRawData(buff, sizeof(char)*64);
+      long int num = read.readRawData(buff, sizeof(char)*64);
       QByteArray data(buff, sizeof(char)*num);
 
       bytes += socket->write(data, sizeof(char)*num);
@@ -47,8 +50,6 @@ void MainWindow::on_transfer_button_clicked()
         socket->close();
         return;
       }
-      float precents=(static_cast<float>(bytes) / file_size.toInt()) * 100;
-      ui->label->setText(QString::number(precents));
     }
 }
 
@@ -61,41 +62,45 @@ void MainWindow::my_slot(){
 void MainWindow::slot_reader()
 {
     socket=dynamic_cast<QTcpSocket*>(sender());
-    file_name=socket->read(64);
-    long int file_size=socket->read(64).toInt();
-    long int bytes_done = 0;
+    quint64 file_size;
+    long int bytes_done=0;
     long int bytes=0;
 
     {
+        QByteArray file_info;
+        QDataStream f_info(&file_info, QIODevice::ReadWrite);
+        file_info=socket->readAll();
+
+        f_info>>file_size;
+        f_info>>file_name;
+
         std::string text="Get the "+file_name.toStdString();
         ui->label->setText(QString(text.c_str()));
         qDebug()<<file_size;
+        qDebug()<<file_name;
     }
 
-    QFile file;
-    file.setFileName(file_name);
+    QFile file(file_name);
     file.open(QIODevice::WriteOnly);
 
     QDataStream write(&file);
-
-    while (bytes_done < file_size){
+    while (bytes_done<file_size){
         bytes=0;
         while (bytes==0)
             bytes=socket->waitForReadyRead(-1);
 
-        if (bytes=-1){
+        if (bytes==-1){
             qDebug()<<"Download error";
             socket->close();
             return;
         }
 
-        QByteArray tmp = socket->readAll();
-        bytes += write.writeRawData(tmp.data(), tmp.size());
-        bytes_done += tmp.size();
-
-        float precents=(static_cast<float>(bytes) / file_size) * 100;
-        ui->label->setText(QString::number(precents));
+        QByteArray tmp=socket->readAll();
+        bytes+=write.writeRawData(tmp.data(), tmp.size());
+        bytes_done+=tmp.size();
     }
+
+    ui->label->setText("Finished!");
     file.close();
 }
 
