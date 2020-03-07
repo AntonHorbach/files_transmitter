@@ -30,8 +30,7 @@ private slots:
     void my_slot();
     void slot_reader();
     void on_transfer_button_clicked();
-    void on_server_button_clicked();
-    void on_client_button_clicked();
+    void ip_port_edited();
 };
 
 #endif // MAINWINDOW_H

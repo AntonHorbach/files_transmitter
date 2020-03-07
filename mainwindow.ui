@@ -15,31 +15,31 @@
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="1">
-     <widget class="QPushButton" name="client_button">
+    <item row="1" column="0">
+     <widget class="QLineEdit" name="portLine">
       <property name="text">
-       <string>Client</string>
+       <string>2121</string>
       </property>
      </widget>
     </item>
     <item row="0" column="0">
-     <widget class="QPushButton" name="server_button">
+     <widget class="QLineEdit" name="ipLine">
       <property name="text">
-       <string>Server</string>
+       <string>localhost</string>
       </property>
      </widget>
     </item>
     <item row="2" column="0" colspan="2">
-     <widget class="QPushButton" name="transfer_button">
-      <property name="text">
-       <string>Transfer files</string>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="0" colspan="2">
      <widget class="QLabel" name="label">
       <property name="text">
        <string/>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0" colspan="2">
+     <widget class="QPushButton" name="transfer_button">
+      <property name="text">
+       <string>Transfer files</string>
       </property>
      </widget>
     </item>
@@ -51,7 +51,7 @@
      <x>0</x>
      <y>0</y>
      <width>564</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>

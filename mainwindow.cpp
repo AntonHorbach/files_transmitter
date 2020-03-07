@@ -6,6 +6,15 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    socket = new QTcpSocket(this);
+    server = new QTcpServer(this);
+
+    server->listen(QHostAddress::Any, 2121);
+    socket->connectToHost("localhost", 2121);
+
+    connect(server, SIGNAL(newConnection()), SLOT(my_slot()));
+    connect(socket, SIGNAL(readyRead()), SLOT(slot_reader()));
 }
 
 MainWindow::~MainWindow()
@@ -13,13 +22,20 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_transfer_button_clicked()
-{
+void MainWindow::ip_port_edited() {
+    QString ip = ui->ipLine->text();
+    int port = ui->portLine->text().toInt();
+
+    socket->connectToHost(ip, port);
+    server->listen(QHostAddress::Any, port);
+}
+
+void MainWindow::on_transfer_button_clicked() {
     QFile file(QFileDialog::getOpenFileName(this, "Choose file", "."));
 
     {
         QFileInfo file_info(file);
-        file_name=file_info.fileName();
+        file_name = file_info.fileName();
 
         std::string text="Send the "+file_name.toStdString();
         ui->label->setText(QString(text.c_str()));
@@ -36,13 +52,13 @@ void MainWindow::on_transfer_button_clicked()
     if(!file.open(QFile::ReadOnly)) return;
     QDataStream read(&file);
     char buff[64]{};
-    long int bytes=0;
+    long int bytes = 0;
 
     while(!read.atEnd()){
-      long int num = read.readRawData(buff, sizeof(char)*64);
-      QByteArray data(buff, sizeof(char)*num);
+      long int num = read.readRawData(buff, sizeof(char) * 64);
+      QByteArray data(buff, sizeof(char) * num);
 
-      bytes += socket->write(data, sizeof(char)*num);
+      bytes += socket->write(data, sizeof(char) * num);
       socket->flush();
 
       if (bytes==-1){
@@ -54,14 +70,14 @@ void MainWindow::on_transfer_button_clicked()
 }
 
 void MainWindow::my_slot(){
-    socket=server->nextPendingConnection();
+    socket = server->nextPendingConnection();
     connect(socket, SIGNAL(disconnected()), socket, SLOT(deleteLater()));
     connect(socket, SIGNAL(readyRead()), SLOT(slot_reader()));
 }
 
 void MainWindow::slot_reader()
 {
-    socket=dynamic_cast<QTcpSocket*>(sender());
+    socket = dynamic_cast<QTcpSocket*>(sender());
     quint64 file_size;
     long int bytes_done=0;
     long int bytes=0;
@@ -69,53 +85,35 @@ void MainWindow::slot_reader()
     {
         QByteArray file_info;
         QDataStream f_info(&file_info, QIODevice::ReadWrite);
-        file_info=socket->readAll();
+        file_info = socket->readAll();
 
-        f_info>>file_size;
-        f_info>>file_name;
+        f_info >> file_size;
+        f_info >> file_name;
 
-        std::string text="Get the "+file_name.toStdString();
+        std::string text = "Get the " + file_name.toStdString();
         ui->label->setText(QString(text.c_str()));
-        qDebug()<<file_size;
-        qDebug()<<file_name;
     }
 
     QFile file(file_name);
-    file.open(QIODevice::WriteOnly);
+    if(file.open(QIODevice::WriteOnly)) return;
 
     QDataStream write(&file);
-    while (bytes_done<file_size){
-        bytes=0;
-        while (bytes==0)
+    while (bytes_done < file_size){
+        bytes = 0;
+        while (bytes == 0)
             bytes=socket->waitForReadyRead(-1);
 
-        if (bytes==-1){
+        if (bytes == -1){
             qDebug()<<"Download error";
             socket->close();
             return;
         }
 
-        QByteArray tmp=socket->readAll();
-        bytes+=write.writeRawData(tmp.data(), tmp.size());
-        bytes_done+=tmp.size();
+        QByteArray tmp = socket->readAll();
+        bytes += write.writeRawData(tmp.data(), tmp.size());
+        bytes_done += tmp.size();
     }
 
     ui->label->setText("Finished!");
     file.close();
-}
-
-void MainWindow::on_server_button_clicked()
-{
-    ui->label->setText("U r the server");
-    server=new QTcpServer(this);
-    server->listen(QHostAddress::Any, 2121);
-    connect(server, SIGNAL(newConnection()), SLOT(my_slot()));
-}
-
-void MainWindow::on_client_button_clicked()
-{
-    socket=new QTcpSocket(this);
-    socket->connectToHost("localhost", 2121);
-    ui->label->setText("U r the client");
-    connect(socket, SIGNAL(readyRead()), SLOT(slot_reader()));
 }
